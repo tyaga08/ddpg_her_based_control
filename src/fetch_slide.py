@@ -55,32 +55,40 @@ print("d_num_actions",d_num_actions)
 
 fetch_agent = ddpg.Agent(d_alpha, d_beta, d_input_dims, d_tau, env, d_num_actions, d_layer1_size, d_layer2_size, d_layer3_size, d_layer4_size,d_output_dir)
 
-fetch_agent.load_models()
+# fetch_agent.load_models()
 
 score_history = []
 critic_loss_history = []
 actor_obj_history = []
 
+score_file_name = "score.csv"
+critic_loss_file_name = "critic_loss.csv"
+actor_func_file_name = "actor_obj_func.csv"
+time_count = 0
 
 for _epochs in range(_MAX_EPOCHS):
-    first_state = env.reset()
+    # first_state = env.reset()
     
     for _episodes in range(_MAX_EPISODES):
-        observation = first_state.copy()
+        observation = env.reset()
+        # observation = first_state.copy()
         state_inp = concat_obs_goal(observation)
         done = False
         time_step = 0
+        score = 0
         
         fetch_agent.initialize_her_buffer()
 
-        while (time_step < _MAX_TIMESTEPS):
+        while (not done):
             act = fetch_agent.choose_action(state_inp)
             new_state, reward, done, info = env.step(act)
             # env.render()
             fetch_agent.remember(concat_obs_goal(observation), act, reward, concat_obs_goal(new_state), observation['desired_goal'], observation['achieved_goal'], new_state['desired_goal'], new_state['achieved_goal'], int(done))
+            score += reward
             observation = new_state
             time_step += 1
-
+        score_history.append(score)
+        
         fetch_agent.her_memory.manipulate_buffer()
         h_states, h_actions, h_new_states, h_rewards, h_terminal, h_fag, h_lag = fetch_agent.her_memory.return_elements()
         if are_posns_different(h_fag, h_lag):
@@ -90,7 +98,6 @@ for _epochs in range(_MAX_EPOCHS):
 
     for _episodes in range(_MAX_EPISODES // 2):
         time_step = 0
-        score = 0
         critic_loss = 0
         actor_objective_func = 0
         cl = 0.
@@ -99,12 +106,10 @@ for _epochs in range(_MAX_EPOCHS):
             cl, aof = fetch_agent.learn()
             actor_objective_func += aof
             critic_loss += cl
-            score += reward
             time_step += 1
         actor_objective_func = actor_objective_func/_MAX_TIMESTEPS
         critic_loss = critic_loss/_MAX_TIMESTEPS
 
-        score_history.append(score)
         critic_loss_history.append(critic_loss)
         actor_obj_history.append(actor_objective_func    )
 
@@ -120,7 +125,24 @@ for _epochs in range(_MAX_EPOCHS):
 
     if  _epochs %5  == 0:
         fetch_agent.save_models()
-    
+
+        sc = open(os.path.join(d_output_dir, score_file_name),"w+")
+        sc.write("Epochs: "+str(_epochs)+"\n")
+        for i in range(len(score_history)):
+            sc.write(str(score_history[i])+"\n")
+        sc.close()
+
+        cl = open(os.path.join(d_output_dir, critic_loss_file_name),"w+")
+        cl.write("Epochs: "+str(_epochs)+"\n")
+        for i in range(len(critic_loss_history)):
+            cl.write(str(critic_loss_history[i])+"\n")
+        cl.close()
+
+        aoc = open(os.path.join(d_output_dir, actor_func_file_name),"w+")
+        aoc.write("Epochs: "+str(_epochs)+"\n")
+        for i in range(len(actor_obj_history)):
+            aoc.write(str(actor_obj_history[i])+"\n")
+        aoc.close()
 
 print(score_history)
 print(critic_loss_history)

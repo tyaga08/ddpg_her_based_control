@@ -1,3 +1,4 @@
+import os
 import ddpg
 import gym
 import numpy as np
@@ -37,6 +38,7 @@ fetch_agent.load_models()
 score_history = []
 num_steps = 50
 test_no_episodes = 100
+score_file_name = "inference.csv"
 
 for i in range(test_no_episodes): #Total episodes to train
     
@@ -53,7 +55,14 @@ for i in range(test_no_episodes): #Total episodes to train
         act = fetch_agent.choose_action(curr_state_des_goal)
         new_state, reward, done, info = env.step(act)
         env.render()
-        
-        
+
     print("Episode number : {} Reward : {} Success : {}".format(i, reward,info['is_success']))
+
+    score_history.append(reward)
+
+sc = open(os.path.join(d_output_dir, score_file_name),"w+")
+sc.write("Inference_score"+"\n")
+for i in range(len(score_history)):
+    sc.write(str(score_history[i])+"\n")
+sc.close()
 
